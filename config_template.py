@@ -6,9 +6,9 @@ Copy this to config.py and fill in your credentials
 # Capital.com API Configuration
 # Get your API key from: Settings > API integrations > Generate new key
 
-API_KEY = "your-api-key-here"
-USERNAME = "your-email-or-username"
-PASSWORD = "your-password"
+API_KEY = "MDQRi4km1ODEzGeF"
+USERNAME = "chishimba.kabwe@gmail.com"
+PASSWORD = "-Cullbanga#1"
 
 # Environment Selection
 # Set to True for demo/sandbox environment

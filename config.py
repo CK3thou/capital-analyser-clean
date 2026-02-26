@@ -31,4 +31,4 @@ CATEGORIES = [
 REQUEST_DELAY = 0.15
 
 # Maximum markets to fetch per category (set to None for all)
-MAX_MARKETS_PER_CATEGORY = None  # Fetch all markets
+MAX_MARKETS_PER_CATEGORY = None

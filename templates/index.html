@@ -530,12 +530,14 @@
                             <th class="sortable" data-sort="Name">Market</th>
                             <th class="sortable" data-sort="Category">Category</th>
                             <th class="sortable" data-sort="Price Change %">24h Change</th>
-                            <th class="sortable" data-sort="Perf % 1W">1 Week</th>
-                            <th class="sortable" data-sort="Perf % 1M">1 Month</th>
-                            <th class="sortable" data-sort="Perf % 3M">3 Months</th>
-                            <th class="sortable" data-sort="Perf % 6M">6 Months</th>
-                            <th class="sortable" data-sort="Perf % YTD">YTD</th>
-                            <th class="sortable" data-sort="Perf % 1Y">1 Year</th>
+                            <th class="sortable" data-sort="perf_1w">1 Week</th>
+                            <th class="sortable" data-sort="perf_1m">1 Month</th>
+                            <th class="sortable" data-sort="perf_3m">3 Months</th>
+                            <th class="sortable" data-sort="perf_6m">6 Months</th>
+                            <th class="sortable" data-sort="perf_ytd">YTD</th>
+                            <th class="sortable" data-sort="perf_1y">1 Year</th>
+                            <th class="sortable" data-sort="perf_5y">5 Years</th>
+                            <th class="sortable" data-sort="perf_10y">10 Years</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
@@ -755,6 +757,8 @@
                     <td>${formatPerformance(market['perf_6m'])}</td>
                     <td>${formatPerformance(market['perf_ytd'])}</td>
                     <td>${formatPerformance(market['perf_1y'])}</td>
+                    <td>${formatPerformance(market['perf_5y'])}</td>
+                    <td>${formatPerformance(market['perf_10y'])}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -806,13 +810,15 @@
             const columnMap = {
                 'Name': 'Name',
                 'Category': 'Category',
-                '24h Change': 'Price Change %',
-                '1 Week': 'perf_1w',
-                '1 Month': 'perf_1m',
-                '3 Months': 'perf_3m',
-                '6 Months': 'perf_6m',
-                'YTD': 'perf_ytd',
-                '1 Year': 'perf_1y'
+                'Price Change %': 'Price Change %',
+                'perf_1w': 'perf_1w',
+                'perf_1m': 'perf_1m',
+                'perf_3m': 'perf_3m',
+                'perf_6m': 'perf_6m',
+                'perf_ytd': 'perf_ytd',
+                'perf_1y': 'perf_1y',
+                'perf_5y': 'perf_5y',
+                'perf_10y': 'perf_10y'
             };
 
             const dataColumn = columnMap[column] || column;
@@ -854,9 +860,9 @@
 
                 // Handle numeric columns (includes percentage columns)
                 if (dataColumn.includes('perf') || dataColumn.includes('Price')) {
-                    // Remove % sign if present
-                    aVal = parseFloat(String(aVal).replace('%', '')) || 0;
-                    bVal = parseFloat(String(bVal).replace('%', '')) || 0;
+                    // Remove % sign if present and convert to number
+                    aVal = parseFloat(String(aVal || '0').replace('%', '')) || 0;
+                    bVal = parseFloat(String(bVal || '0').replace('%', '')) || 0;
                 } else {
                     aVal = String(aVal || '').toLowerCase();
                     bVal = String(bVal || '').toLowerCase();

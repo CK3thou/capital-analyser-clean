@@ -721,20 +721,20 @@
         }
 
         function updateCategoryFilter() {
-            const categories = [...new Set(allMarkets.map(m => m.Category))].sort();
+            const categories = [...new Set(allMarkets.map(m => m.Category && m.Category.trim()))].filter(Boolean).sort();
             const select = document.getElementById('categoryFilter');
-            
+
             // Keep current selection
             const currentValue = select.value;
-            
+
             select.innerHTML = '<option value="">All Categories</option>';
             categories.forEach(cat => {
                 const option = document.createElement('option');
                 option.value = cat;
-                option.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+                option.textContent = cat; // No capitalization, use raw value
                 select.appendChild(option);
             });
-            
+
             select.value = currentValue;
         }
 
@@ -789,16 +789,18 @@
         }
 
         function filterAndSearch() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const categoryFilter = document.getElementById('categoryFilter').value;
+            const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value.trim();
 
             let filtered = allMarkets.filter(market => {
                 const matchesSearch = !searchTerm || 
                     (market.Name && market.Name.toLowerCase().includes(searchTerm)) ||
                     (market.Symbol && market.Symbol.toLowerCase().includes(searchTerm));
-                
-                const matchesCategory = !categoryFilter || market.Category.toLowerCase() === categoryFilter.toLowerCase();
-                
+
+                // Compare trimmed, case-insensitive
+                const marketCategory = (market.Category || '').trim();
+                const matchesCategory = !categoryFilter || marketCategory.toLowerCase() === categoryFilter.toLowerCase();
+
                 return matchesSearch && matchesCategory;
             });
 

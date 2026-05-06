@@ -383,7 +383,7 @@ if __name__ == '__main__':
     # Import CSV data if available
     if os.path.exists(CSV_FILE):
         import_csv_to_db(CSV_FILE)
-        print(f"✓ Data imported from {CSV_FILE}")
+        print(f"[OK] Data imported from {CSV_FILE}")
     
     print("="*60)
     print("Capital.com Market Analyzer - Web Interface")

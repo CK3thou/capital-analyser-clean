@@ -678,7 +678,7 @@
 
                 updateStats();
                 updateCategoryFilter();
-                renderTable(allMarkets);
+                renderCurrentView();
 
                 loadingState.style.display = 'none';
                 tableWrapper.style.display = 'block';
@@ -738,18 +738,67 @@
             select.value = currentValue;
         }
 
+        function getFilteredMarkets() {
+            const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value.trim();
+
+            return allMarkets.filter(market => {
+                const matchesSearch = !searchTerm ||
+                    (market.Name && market.Name.toLowerCase().includes(searchTerm)) ||
+                    (market.Symbol && market.Symbol.toLowerCase().includes(searchTerm));
+
+                // Compare trimmed, case-insensitive
+                const marketCategory = (market.Category || '').trim();
+                const matchesCategory = !categoryFilter || marketCategory.toLowerCase() === categoryFilter.toLowerCase();
+
+                return matchesSearch && matchesCategory;
+            });
+        }
+
+        function sortMarketsInPlace(markets) {
+            if (!currentSort.column) return;
+
+            const dataColumn = currentSort.column;
+
+            markets.sort((a, b) => {
+                let aVal = a[dataColumn];
+                let bVal = b[dataColumn];
+
+                // Handle numeric columns (includes percentage columns)
+                if (dataColumn.includes('perf') || dataColumn.includes('Price')) {
+                    aVal = parseFloat(String(aVal || '0').replace('%', '')) || 0;
+                    bVal = parseFloat(String(bVal || '0').replace('%', '')) || 0;
+                } else {
+                    aVal = String(aVal || '').toLowerCase();
+                    bVal = String(bVal || '').toLowerCase();
+                }
+
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function renderCurrentView() {
+            const filtered = getFilteredMarkets();
+            sortMarketsInPlace(filtered);
+            renderTable(filtered);
+        }
+
         function renderTable(markets) {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
 
             markets.forEach(market => {
                 const row = document.createElement('tr');
+                const categoryText = (market.Category || 'Unknown').trim() || 'Unknown';
+                const categoryClass = categoryText.toLowerCase().replace(/\s+/g, '-');
                 row.innerHTML = `
                     <td>
                         <div class="market-name">${market.Name || 'N/A'}</div>
                         <div class="market-epic">${market.Symbol || 'N/A'}</div>
                     </td>
-                    <td><span class="category-badge category-${market.Category.toLowerCase()}">${market.Category}</span></td>
+                    <td><span class="category-badge category-${categoryClass}">${categoryText}</span></td>
                     <td>${formatPerformance(market['Price Change %'])}</td>
                     <td>${formatPerformance(market['perf_1w'])}</td>
                     <td>${formatPerformance(market['perf_1m'])}</td>
@@ -789,22 +838,7 @@
         }
 
         function filterAndSearch() {
-            const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
-            const categoryFilter = document.getElementById('categoryFilter').value.trim();
-
-            let filtered = allMarkets.filter(market => {
-                const matchesSearch = !searchTerm || 
-                    (market.Name && market.Name.toLowerCase().includes(searchTerm)) ||
-                    (market.Symbol && market.Symbol.toLowerCase().includes(searchTerm));
-
-                // Compare trimmed, case-insensitive
-                const marketCategory = (market.Category || '').trim();
-                const matchesCategory = !categoryFilter || marketCategory.toLowerCase() === categoryFilter.toLowerCase();
-
-                return matchesSearch && matchesCategory;
-            });
-
-            renderTable(filtered);
+            renderCurrentView();
         }
 
         function sortTable(column) {
@@ -842,40 +876,7 @@
                 header.classList.add(currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
             }
 
-            // Sort data
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const categoryFilter = document.getElementById('categoryFilter').value;
-
-            let filtered = allMarkets.filter(market => {
-                const matchesSearch = !searchTerm || 
-                    (market.Name && market.Name.toLowerCase().includes(searchTerm)) ||
-                    (market.Symbol && market.Symbol.toLowerCase().includes(searchTerm));
-                
-                const matchesCategory = !categoryFilter || market.Category.toLowerCase() === categoryFilter.toLowerCase();
-                
-                return matchesSearch && matchesCategory;
-            });
-
-            filtered.sort((a, b) => {
-                let aVal = a[dataColumn];
-                let bVal = b[dataColumn];
-
-                // Handle numeric columns (includes percentage columns)
-                if (dataColumn.includes('perf') || dataColumn.includes('Price')) {
-                    // Remove % sign if present and convert to number
-                    aVal = parseFloat(String(aVal || '0').replace('%', '')) || 0;
-                    bVal = parseFloat(String(bVal || '0').replace('%', '')) || 0;
-                } else {
-                    aVal = String(aVal || '').toLowerCase();
-                    bVal = String(bVal || '').toLowerCase();
-                }
-
-                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
-                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-
-            renderTable(filtered);
+            renderCurrentView();
         }
 
         // Event listeners

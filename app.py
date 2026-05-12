@@ -3,7 +3,7 @@ Flask web app for Capital.com Market Analyzer
 Modern, responsive interface with integrated analyzer control
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 import pandas as pd
 import sqlite3
 import os
@@ -15,6 +15,19 @@ from pathlib import Path
 import threading
 
 app = Flask(__name__)
+# Pick up template edits without restarting the server (HTML/JS in index.html).
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+
+@app.after_request
+def _no_store_dashboard_and_api(response: Response) -> Response:
+    """Avoid stale table UI and JSON when the app or template is updated."""
+    if request.path == "/" or request.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 
 # Configuration
 DB_PATH = 'market_data.db'
@@ -45,6 +58,17 @@ def init_db():
             perf_1y_pct REAL,
             perf_5y_pct REAL,
             perf_10y_pct REAL,
+            rsi_24h REAL,
+            rsi_1w REAL,
+            rsi_1m REAL,
+            rsi_3m REAL,
+            rsi_6m REAL,
+            rsi_ytd REAL,
+            rsi_1h REAL,
+            rsi_4h REAL,
+            rsi_1y REAL,
+            rsi_5y REAL,
+            rsi_10y REAL,
             market_status TEXT,
             type TEXT,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -60,7 +84,30 @@ def init_db():
     ''')
     
     conn.commit()
+    _ensure_rsi_columns(conn)
     conn.close()
+
+
+def _ensure_rsi_columns(conn):
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(markets)")
+    existing = {row[1] for row in cur.fetchall()}
+    for col in (
+        "rsi_24h",
+        "rsi_1w",
+        "rsi_1m",
+        "rsi_3m",
+        "rsi_6m",
+        "rsi_ytd",
+        "rsi_1h",
+        "rsi_4h",
+        "rsi_1y",
+        "rsi_5y",
+        "rsi_10y",
+    ):
+        if col not in existing:
+            cur.execute(f"ALTER TABLE markets ADD COLUMN {col} REAL")
+    conn.commit()
 
 
 def import_csv_to_db(csv_file):
@@ -72,10 +119,21 @@ def import_csv_to_db(csv_file):
         df = pd.read_csv(csv_file)
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
+        _ensure_rsi_columns(conn)
+
         # Clear existing data
         cursor.execute('DELETE FROM markets')
         
+        def parse_rsi(val):
+            if pd.isna(val) or val == '' or val == 'N/A':
+                return None
+            if isinstance(val, (int, float)):
+                return float(val)
+            try:
+                return float(str(val).replace('%', '').strip())
+            except (ValueError, TypeError):
+                return None
+
         for _, row in df.iterrows():
             def parse_pct(val):
                 if pd.isna(val) or val == 'N/A':
@@ -92,8 +150,9 @@ def import_csv_to_db(csv_file):
                     category, symbol, name, current_price, currency,
                     price_change_pct, perf_1w_pct, perf_1m_pct, perf_3m_pct,
                     perf_6m_pct, perf_ytd_pct, perf_1y_pct, perf_5y_pct,
-                    perf_10y_pct, market_status, type
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    perf_10y_pct, rsi_24h, rsi_1w, rsi_1m, rsi_3m, rsi_6m,
+                    rsi_ytd, rsi_1h, rsi_4h, market_status, type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 row.get('Category', ''),
                 row.get('Symbol', ''),
@@ -109,6 +168,14 @@ def import_csv_to_db(csv_file):
                 parse_pct(row.get('Perf % 1Y', None)),
                 parse_pct(row.get('Perf % 5Y', None)),
                 parse_pct(row.get('Perf % 10Y', None)),
+                parse_rsi(row.get('RSI 24H', None)),
+                parse_rsi(row.get('RSI 1W', None)),
+                parse_rsi(row.get('RSI 1M', None)),
+                parse_rsi(row.get('RSI 3M', None)),
+                parse_rsi(row.get('RSI 6M', None)),
+                parse_rsi(row.get('RSI YTD', None)),
+                parse_rsi(row.get('RSI 1H', None)),
+                parse_rsi(row.get('RSI 4H', None)),
                 row.get('Market Status', ''),
                 row.get('Type', '')
             ))
@@ -286,7 +353,15 @@ def api_markets():
         'perf_ytd': m['perf_ytd_pct'],
         'perf_1y': m['perf_1y_pct'],
         'perf_5y': m['perf_5y_pct'],
-        'perf_10y': m['perf_10y_pct']
+        'perf_10y': m['perf_10y_pct'],
+        'rsi_24h': m.get('rsi_24h'),
+        'rsi_1w': m.get('rsi_1w'),
+        'rsi_1m': m.get('rsi_1m'),
+        'rsi_3m': m.get('rsi_3m'),
+        'rsi_6m': m.get('rsi_6m'),
+        'rsi_ytd': m.get('rsi_ytd'),
+        'rsi_1h': m.get('rsi_1h'),
+        'rsi_4h': m.get('rsi_4h'),
     } for m in markets])
 
 

@@ -5,9 +5,80 @@ Fetches and categorizes market symbols with performance metrics
 
 import requests
 import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Tuple
 import json
+
+
+def _parse_snapshot_time(ts: str) -> Optional[datetime]:
+    if not ts:
+        return None
+    s = str(ts).replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _parse_price_candles(prices_payload: Optional[Dict]) -> List[Tuple[datetime, float]]:
+    """Return (time, close bid) sorted oldest first."""
+    if not prices_payload or "prices" not in prices_payload:
+        return []
+    out: List[Tuple[datetime, float]] = []
+    for p in prices_payload["prices"]:
+        t = _parse_snapshot_time(p.get("snapshotTimeUTC") or p.get("snapshotTime"))
+        bid = (p.get("closePrice") or {}).get("bid")
+        if t is None or bid is None:
+            continue
+        try:
+            out.append((t, float(bid)))
+        except (TypeError, ValueError):
+            continue
+    out.sort(key=lambda x: x[0])
+    return out
+
+
+def wilders_rsi(closes: List[float], period: int = 14) -> Optional[float]:
+    """Wilder's RSI on closes (oldest first). Returns last RSI or None."""
+    n = len(closes)
+    if period < 1 or n < period + 1:
+        return None
+    gains: List[float] = []
+    losses: List[float] = []
+    for i in range(1, n):
+        diff = closes[i] - closes[i - 1]
+        gains.append(max(diff, 0.0))
+        losses.append(max(-diff, 0.0))
+    m = len(gains)
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    for i in range(period, m):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+    if avg_loss == 0:
+        return 100.0 if avg_gain > 0 else 0.0
+    rs = avg_gain / avg_loss
+    return 100.0 - (100.0 / (1.0 + rs))
+
+
+def rsi_from_candles(
+    candles: List[Tuple[datetime, float]], cutoff: datetime, period: int = 14
+) -> Optional[float]:
+    """RSI on close prices with snapshot time >= cutoff (naive/aware must match)."""
+    closes = [c for t, c in candles if t >= cutoff]
+    return wilders_rsi(closes, period) if closes else None
+
+
+def _utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _normalize_candles(
+    candles: List[Tuple[datetime, float]],
+) -> List[Tuple[datetime, float]]:
+    return [(_utc(t), c) for t, c in candles]
 
 
 class CapitalAPI:
@@ -437,3 +508,43 @@ class CapitalAPI:
                 performance['perf_10y'] = ((current_price - old_price) / old_price) * 100
         
         return performance
+
+    def calculate_rsi_metrics(self, epic: str, period: int = 14) -> Dict[str, Optional[float]]:
+        """
+        Wilder RSI(14): 1H / 4H on full intraday series; 24h and 1W on hourly windows;
+        longer horizons on daily closes.
+        """
+        now = datetime.now(timezone.utc)
+        rsi: Dict[str, Optional[float]] = {
+            "rsi_1h": None,
+            "rsi_4h": None,
+            "rsi_24h": None,
+            "rsi_1w": None,
+            "rsi_1m": None,
+            "rsi_3m": None,
+            "rsi_6m": None,
+            "rsi_ytd": None,
+        }
+        day_payload = self.get_historical_prices(epic, resolution="DAY", max_points=1000)
+        hour_payload = self.get_historical_prices(epic, resolution="HOUR", max_points=500)
+        h4_payload = self.get_historical_prices(epic, resolution="HOUR_4", max_points=500)
+        daily = _normalize_candles(_parse_price_candles(day_payload))
+        hourly = _normalize_candles(_parse_price_candles(hour_payload))
+        h4 = _normalize_candles(_parse_price_candles(h4_payload))
+
+        closes_1h = [c for _, c in hourly]
+        if len(closes_1h) >= period + 1:
+            rsi["rsi_1h"] = wilders_rsi(closes_1h, period)
+
+        closes_4h = [c for _, c in h4]
+        if len(closes_4h) >= period + 1:
+            rsi["rsi_4h"] = wilders_rsi(closes_4h, period)
+
+        rsi["rsi_24h"] = rsi_from_candles(hourly, now - timedelta(hours=24), period)
+        rsi["rsi_1w"] = rsi_from_candles(hourly, now - timedelta(days=7), period)
+        rsi["rsi_1m"] = rsi_from_candles(daily, now - timedelta(days=30), period)
+        rsi["rsi_3m"] = rsi_from_candles(daily, now - timedelta(days=90), period)
+        rsi["rsi_6m"] = rsi_from_candles(daily, now - timedelta(days=180), period)
+        ytd_start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+        rsi["rsi_ytd"] = rsi_from_candles(daily, ytd_start, period)
+        return rsi

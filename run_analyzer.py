@@ -49,6 +49,17 @@ def init_database(db_path: str = 'market_data.db'):
             perf_1y_pct REAL,
             perf_5y_pct REAL,
             perf_10y_pct REAL,
+            rsi_24h REAL,
+            rsi_1w REAL,
+            rsi_1m REAL,
+            rsi_3m REAL,
+            rsi_6m REAL,
+            rsi_ytd REAL,
+            rsi_1h REAL,
+            rsi_4h REAL,
+            rsi_1y REAL,
+            rsi_5y REAL,
+            rsi_10y REAL,
             market_status TEXT,
             type TEXT,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -64,15 +75,39 @@ def init_database(db_path: str = 'market_data.db'):
     ''')
     
     conn.commit()
+    _ensure_rsi_columns(conn)
     conn.close()
     print(f"[OK] Database initialized at {db_path}")
+
+
+def _ensure_rsi_columns(conn):
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(markets)")
+    existing = {row[1] for row in cur.fetchall()}
+    for col in (
+        "rsi_24h",
+        "rsi_1w",
+        "rsi_1m",
+        "rsi_3m",
+        "rsi_6m",
+        "rsi_ytd",
+        "rsi_1h",
+        "rsi_4h",
+        "rsi_1y",
+        "rsi_5y",
+        "rsi_10y",
+    ):
+        if col not in existing:
+            cur.execute(f"ALTER TABLE markets ADD COLUMN {col} REAL")
+    conn.commit()
 
 
 def store_to_database(market_data: list, db_path: str = 'market_data.db'):
     """Store market data directly to SQLite database"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+    _ensure_rsi_columns(conn)
+
     try:
         # Clear existing data
         cursor.execute('DELETE FROM markets')
@@ -87,7 +122,17 @@ def store_to_database(market_data: list, db_path: str = 'market_data.db'):
                 except (ValueError, AttributeError):
                     return None
             return float(val)
-        
+
+        def parse_rsi(val):
+            if val is None or val == '' or val == 'N/A':
+                return None
+            if isinstance(val, (int, float)):
+                return float(val)
+            try:
+                return float(str(val).strip())
+            except (ValueError, TypeError):
+                return None
+
         # Insert market data
         for row in market_data:
             cursor.execute('''
@@ -95,8 +140,9 @@ def store_to_database(market_data: list, db_path: str = 'market_data.db'):
                     category, symbol, name, current_price, currency,
                     price_change_pct, perf_1w_pct, perf_1m_pct, perf_3m_pct,
                     perf_6m_pct, perf_ytd_pct, perf_1y_pct, perf_5y_pct,
-                    perf_10y_pct, market_status, type
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    perf_10y_pct, rsi_24h, rsi_1w, rsi_1m, rsi_3m, rsi_6m,
+                    rsi_ytd, rsi_1h, rsi_4h, market_status, type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 row.get('Category', ''),
                 row.get('Symbol', ''),
@@ -112,6 +158,14 @@ def store_to_database(market_data: list, db_path: str = 'market_data.db'):
                 parse_pct(row.get('Perf % 1Y')),
                 parse_pct(row.get('Perf % 5Y')),
                 parse_pct(row.get('Perf % 10Y')),
+                parse_rsi(row.get('RSI 24H')),
+                parse_rsi(row.get('RSI 1W')),
+                parse_rsi(row.get('RSI 1M')),
+                parse_rsi(row.get('RSI 3M')),
+                parse_rsi(row.get('RSI 6M')),
+                parse_rsi(row.get('RSI YTD')),
+                parse_rsi(row.get('RSI 1H')),
+                parse_rsi(row.get('RSI 4H')),
                 row.get('Market Status', ''),
                 row.get('Type', '')
             ))
@@ -186,7 +240,13 @@ def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
             
             # Calculate performance metrics
             performance = api.calculate_performance(epic)
-            
+            rsi_vals = api.calculate_rsi_metrics(epic)
+
+            def fmt_rsi(v):
+                if v is None:
+                    return "N/A"
+                return f"{v:.2f}"
+
             # Compile data
             market_data = {
                 'Category': category.title(),
@@ -208,6 +268,14 @@ def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
                 'Perf % 1Y': format_percentage(performance.get('perf_1y')),
                 'Perf % 5Y': format_percentage(performance.get('perf_5y')),
                 'Perf % 10Y': format_percentage(performance.get('perf_10y')),
+                'RSI 1H': fmt_rsi(rsi_vals.get('rsi_1h')),
+                'RSI 4H': fmt_rsi(rsi_vals.get('rsi_4h')),
+                'RSI 24H': fmt_rsi(rsi_vals.get('rsi_24h')),
+                'RSI 1W': fmt_rsi(rsi_vals.get('rsi_1w')),
+                'RSI 1M': fmt_rsi(rsi_vals.get('rsi_1m')),
+                'RSI 3M': fmt_rsi(rsi_vals.get('rsi_3m')),
+                'RSI 6M': fmt_rsi(rsi_vals.get('rsi_6m')),
+                'RSI YTD': fmt_rsi(rsi_vals.get('rsi_ytd')),
                 'Market Status': snapshot.get('marketStatus', 'N/A'),
                 'Type': instrument.get('type', category.upper()),
             }
@@ -256,6 +324,14 @@ def export_to_csv(data: list, filename: str):
         'Perf % 1Y',
         'Perf % 5Y',
         'Perf % 10Y',
+        'RSI 1H',
+        'RSI 4H',
+        'RSI 24H',
+        'RSI 1W',
+        'RSI 1M',
+        'RSI 3M',
+        'RSI 6M',
+        'RSI YTD',
         'Market Status',
         'Type',
     ]

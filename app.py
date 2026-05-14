@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import json
+import csv
 from datetime import datetime
 from pathlib import Path
 import threading
@@ -284,7 +285,7 @@ def get_top_performers(timeframe):
                 FROM markets
                 WHERE category = ? AND {col_name} IS NOT NULL
                 ORDER BY {col_name} DESC
-                LIMIT 5
+                LIMIT 10
             ''', (category,))
             
             performers = []
@@ -433,6 +434,22 @@ def analyzer_status():
         'running': ANALYZER_RUNNING,
         'last_fetch': get_last_fetch_time()
     })
+
+
+@app.route('/api/trades')
+def api_trades():
+    """Get trade logs from trades.csv"""
+    try:
+        trades = []
+        if os.path.exists('trades.csv'):
+            with open('trades.csv', 'r') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row:
+                        trades.append(row)
+        return jsonify({'trades': trades, 'total': len(trades)})
+    except Exception as e:
+        return jsonify({'error': str(e), 'trades': []}), 500
 
 
 @app.route('/api/analyzer/run', methods=['POST'])

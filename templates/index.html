@@ -692,8 +692,8 @@
         </div>
 
         <div class="tabs-container">
-            <button class="tab-button active" onclick="switchTab('markets', this)">📊 Markets</button>
-            <button class="tab-button" onclick="switchTab('trades', this)">📝 Strategy Logger</button>
+            <button class="tab-button active" onclick="switchTab('markets')">📊 Markets</button>
+            <button class="tab-button" onclick="switchTab('trades')">📝 Strategy Logger</button>
         </div>
 
         <div id="markets-tab" class="tab-content active">
@@ -755,10 +755,6 @@
                         No strategy trades have been logged yet.<br>
                         Start logging your trades using the trade logger.
                     </div>
-                    <div class="empty-state-text" style="margin-top: 0.75rem;">
-                        Run this command in the app folder:
-                        <code>python trade_logger.py</code>
-                    </div>
                 </div>
 
                 <div id="tradesWrapper" class="table-wrapper" style="display: none;">
@@ -788,7 +784,7 @@
     </div>
 
     <script>
-        function switchTab(tabName, button) {
+        function switchTab(tabName) {
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
@@ -804,9 +800,7 @@
             }
 
             // Mark button as active
-            if (button) {
-                button.classList.add('active');
-            }
+            event.target.classList.add('active');
 
             // Load trades if switching to trades tab
             if (tabName === 'trades') {

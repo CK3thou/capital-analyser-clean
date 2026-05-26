@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import json
+import config # Import config for available categories
 from datetime import datetime
 from pathlib import Path
 import threading
@@ -326,8 +327,11 @@ def index():
                 'symbol': best['symbol'],
                 'value': f"{best['perf_1m_pct']:.2f}%"
             }
+
+    # Pass available categories from config.py
+    available_categories = config.CATEGORIES if hasattr(config, 'CATEGORIES') else []
     
-    return render_template('index.html', stats=stats)
+    return render_template('index.html', stats=stats, available_categories=available_categories)
 
 
 @app.route('/api/markets')
@@ -389,15 +393,20 @@ def api_stats():
     })
 
 
-def run_analyzer():
+def run_analyzer(categories=None):
     """Run the analyzer script in background"""
     global ANALYZER_PROCESS, ANALYZER_RUNNING
     
     try:
         ANALYZER_RUNNING = True
+
+        cmd = [sys.executable, 'run_analyzer.py']
+        if categories:
+            cmd.extend(['--categories'] + categories)
+
         # Run run_analyzer.py as subprocess
         ANALYZER_PROCESS = subprocess.Popen(
-            [sys.executable, 'run_analyzer.py'],
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
@@ -443,8 +452,11 @@ def analyzer_run():
     if ANALYZER_RUNNING:
         return jsonify({'success': False, 'error': 'Analyzer already running'}), 400
     
+    data = request.json or {}
+    categories = data.get('categories', [])
+    
     # Run in background thread to not block
-    thread = threading.Thread(target=run_analyzer)
+    thread = threading.Thread(target=run_analyzer, args=(categories,))
     thread.daemon = True
     thread.start()
     

@@ -525,6 +525,48 @@
             font-size: 0.9rem;
         }
     
+        .category-selection-container {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .category-checkbox-group {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .category-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary); /* Style the checkbox */
+        }
+
+        @media (max-width: 600px) {
+            .category-checkbox-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -552,6 +594,18 @@
                 <div class="runner-description">
                     Fetch latest market data from Capital.com API and update the database with current performance metrics
                 </div>
+
+                <div class="category-selection-container">
+                    <div class="category-checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="selectAllCategories"> Select All
+                        </label>
+                    </div>
+                    <div id="categoryCheckboxes" class="category-checkbox-grid">
+                        <!-- Category checkboxes will be dynamically loaded here -->
+                    </div>
+                </div>
+
                 <button class="run-analyzer-btn" id="runAnalyzerBtn" onclick="runAnalyzer()">
                     <span id="btnText">▶ Start Analyzer</span>
                 </button>
@@ -566,6 +620,18 @@
                 <div class="runner-description">
                     No data available yet. Click the button below to fetch market data from Capital.com API and populate the database.
                 </div>
+
+                <div class="category-selection-container">
+                    <div class="category-checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="selectAllCategories"> Select All
+                        </label>
+                    </div>
+                    <div id="categoryCheckboxes" class="category-checkbox-grid">
+                        <!-- Category checkboxes will be dynamically loaded here -->
+                    </div>
+                </div>
+
                 <button class="run-analyzer-btn" id="runAnalyzerBtn" onclick="runAnalyzer()">
                     <span id="btnText">▶ Start Analyzer</span>
                 </button>
@@ -656,6 +722,7 @@
         const TABLE_MODE_STORAGE_KEY = 'capitalAnalyserTableRsi';
 
         let allMarkets = [];
+        const availableCategories = {{ available_categories | tojson }}; // Get categories from Flask
         let currentSort = { column: null, direction: 'asc' };
         let analyzerRunning = false;
         function readStoredTableModeRsi() {
@@ -757,6 +824,16 @@
                 ? '<span class="status-yes">YES</span>'
                 : '<span class="status-no">NO</span>';
         }
+        
+        function handleIndividualCategoryChange() {
+            checkSelectAllState();
+        }
+
+        function checkSelectAllState() {
+            const allIndividualCheckboxes = document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]');
+            const allChecked = Array.from(allIndividualCheckboxes).every(checkbox => checkbox.checked);
+            document.getElementById('selectAllCategories').checked = allChecked;
+        }
 
         async function runAnalyzer() {
             if (analyzerRunning) {
@@ -775,12 +852,17 @@
             statusText.textContent = 'Fetching market data...';
             analyzerRunning = true;
 
+            // Collect selected categories
+            const selectedCategories = Array.from(document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]:checked'))
+                                            .map(checkbox => checkbox.value);
+
             try {
                 const response = await fetch('/api/analyzer/run', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({ categories: selectedCategories }) // Send selected categories
                 });
 
                 const data = await response.json();
@@ -1152,8 +1234,10 @@
         document.getElementById('categoryFilter').addEventListener('change', filterAndSearch);
 
         // Load data on page load
-        loadData();
-
+        document.addEventListener('DOMContentLoaded', () => {
+            populateCategoryCheckboxes(); // Populate checkboxes
+            loadData();
+        });
         // Auto-refresh every 60 seconds
         setInterval(loadData, 60000);
     </script>

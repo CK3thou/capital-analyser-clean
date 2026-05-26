@@ -7,6 +7,7 @@ import csv
 import sqlite3
 import time
 from datetime import datetime
+import argparse
 from capital_analyzer import CapitalAPI
 import os
 import sys
@@ -350,11 +351,17 @@ def export_to_csv(data: list, filename: str):
 
 def main():
     """Main execution function"""
+    parser = argparse.ArgumentParser(description="Capital.com Market Analyzer")
+    parser.add_argument('--categories', nargs='+', help='Categories to process')
+    args = parser.parse_args()
+
+    target_categories = args.categories if args.categories else config.CATEGORIES
+
     print("="*60)
     print("Capital.com Market Analyzer")
     print("="*60)
     print(f"Environment: {'DEMO' if config.USE_DEMO else 'LIVE'}")
-    print(f"Categories: {', '.join(config.CATEGORIES)}")
+    print(f"Categories: {', '.join(target_categories)}")
     print(f"Database: market_data.db (primary storage)")
     print("="*60)
     
@@ -378,7 +385,7 @@ def main():
     
     # Fetch and analyze markets
     start_time = datetime.now()
-    market_data = fetch_and_analyze_markets(api, config.CATEGORIES)
+    market_data = fetch_and_analyze_markets(api, target_categories)
     end_time = datetime.now()
     
     # Store to database (primary storage)

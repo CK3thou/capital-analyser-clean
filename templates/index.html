@@ -801,6 +801,36 @@
             currentSort = { column: null, direction: 'asc' };
         }
 
+        function populateCategoryCheckboxes() {
+            const container = document.getElementById('categoryCheckboxes');
+            if (!container) return;
+            container.innerHTML = ''; 
+
+            if (availableCategories && availableCategories.length > 0) {
+                availableCategories.forEach(category => {
+                    const label = document.createElement('label');
+                    label.className = 'checkbox-label';
+                    label.innerHTML = `
+                        <input type="checkbox" name="category" value="${category}" checked> ${category.charAt(0).toUpperCase() + category.slice(1)}
+                    `;
+                    container.appendChild(label);
+                });
+            }
+
+            const selectAll = document.getElementById('selectAllCategories');
+            if (selectAll) {
+                selectAll.addEventListener('change', handleSelectAll);
+                selectAll.checked = true;
+            }
+        }
+
+        function handleSelectAll() {
+            const selectAll = document.getElementById('selectAllCategories');
+            document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+        }
+
         function syncTimeframeHeaders() {
             rebuildTableHeader();
             resetTableSortUi();

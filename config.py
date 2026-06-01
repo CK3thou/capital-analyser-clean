@@ -32,3 +32,6 @@ REQUEST_DELAY = 0.15
 
 # Maximum markets to fetch per category (set to None for all)
 MAX_MARKETS_PER_CATEGORY = None
+
+# Maximum threads for parallel processing (speed up data fetch)
+MAX_THREADS = 5

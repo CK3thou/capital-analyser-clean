@@ -542,13 +542,23 @@
 
         .category-checkbox-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+        }
+
+        .category-option {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            display: grid;
             gap: 10px;
         }
 
-        .checkbox-label {
+        .category-option .checkbox-label {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             cursor: pointer;
             font-size: 0.95rem;
             color: var(--text-secondary);
@@ -558,7 +568,21 @@
             margin-right: 8px;
             width: 18px;
             height: 18px;
-            accent-color: var(--primary); /* Style the checkbox */
+            accent-color: var(--primary);
+        }
+
+        .category-limit-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+        }
+
+        .category-limit-input:focus {
+            outline: none;
+            border-color: var(--primary);
         }
 
         @media (max-width: 600px) {
@@ -808,12 +832,22 @@
 
             if (availableCategories && availableCategories.length > 0) {
                 availableCategories.forEach(category => {
-                    const label = document.createElement('label');
-                    label.className = 'checkbox-label';
-                    label.innerHTML = `
-                        <input type="checkbox" name="category" value="${category}" checked> ${category.charAt(0).toUpperCase() + category.slice(1)}
+                    const option = document.createElement('div');
+                    option.className = 'category-option';
+                    option.innerHTML = `
+                        <label class="checkbox-label">
+                            <span><input type="checkbox" name="category" value="${category}" checked> ${category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            class="category-limit-input"
+                            data-category="${category}"
+                            placeholder="Limit for ${category}"
+                            title="Leave empty to use default limit"
+                        >
                     `;
-                    container.appendChild(label);
+                    container.appendChild(option);
                 });
             }
 
@@ -822,6 +856,10 @@
                 selectAll.addEventListener('change', handleSelectAll);
                 selectAll.checked = true;
             }
+
+            document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', handleIndividualCategoryChange);
+            });
         }
 
         function handleSelectAll() {
@@ -829,6 +867,20 @@
             document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]').forEach(checkbox => {
                 checkbox.checked = selectAll.checked;
             });
+        }
+
+        function getCategoryLimits() {
+            const limits = {};
+            document.querySelectorAll('.category-limit-input').forEach(input => {
+                const category = input.dataset.category;
+                const value = input.value.trim();
+                if (!value) return;
+                const parsed = parseInt(value, 10);
+                if (!isNaN(parsed) && parsed >= 0) {
+                    limits[category] = parsed;
+                }
+            });
+            return limits;
         }
 
         function syncTimeframeHeaders() {
@@ -882,9 +934,10 @@
             statusText.textContent = 'Fetching market data...';
             analyzerRunning = true;
 
-            // Collect selected categories
+            // Collect selected categories and limits
             const selectedCategories = Array.from(document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]:checked'))
                                             .map(checkbox => checkbox.value);
+            const categoryLimits = getCategoryLimits();
 
             try {
                 const response = await fetch('/api/analyzer/run', {
@@ -892,7 +945,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ categories: selectedCategories }) // Send selected categories
+                    body: JSON.stringify({ categories: selectedCategories, categoryLimits })
                 });
 
                 const data = await response.json();

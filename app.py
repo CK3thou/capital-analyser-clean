@@ -393,7 +393,7 @@ def api_stats():
     })
 
 
-def run_analyzer(categories=None):
+def run_analyzer(categories=None, category_limits=None):
     """Run the analyzer script in background"""
     global ANALYZER_PROCESS, ANALYZER_RUNNING
     
@@ -403,6 +403,12 @@ def run_analyzer(categories=None):
         cmd = [sys.executable, 'run_analyzer.py']
         if categories:
             cmd.extend(['--categories'] + categories)
+
+        if category_limits:
+            for category, limit in category_limits.items():
+                if limit is None or str(limit).strip() == '':
+                    continue
+                cmd.extend(['--category-limit', f'{category}:{limit}'])
 
         # Run run_analyzer.py as subprocess
         ANALYZER_PROCESS = subprocess.Popen(
@@ -454,9 +460,25 @@ def analyzer_run():
     
     data = request.json or {}
     categories = data.get('categories', [])
-    
+    raw_limits = data.get('categoryLimits', {})
+    category_limits = {}
+
+    if isinstance(raw_limits, dict):
+        for category, value in raw_limits.items():
+            if value is None or str(value).strip() == '':
+                continue
+            try:
+                limit = int(value)
+                if limit < 0:
+                    raise ValueError('Limit must be >= 0')
+                category_limits[category] = limit
+            except Exception:
+                return jsonify({'success': False, 'error': f'Invalid limit for category {category}'}), 400
+    else:
+        return jsonify({'success': False, 'error': 'categoryLimits must be an object'}), 400
+
     # Run in background thread to not block
-    thread = threading.Thread(target=run_analyzer, args=(categories,))
+    thread = threading.Thread(target=run_analyzer, args=(categories, category_limits))
     thread.daemon = True
     thread.start()
     

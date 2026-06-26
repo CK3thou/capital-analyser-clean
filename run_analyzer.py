@@ -188,14 +188,14 @@ def store_to_database(market_data: list, db_path: str = 'market_data.db'):
         conn.close()
 
 
-def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
+def fetch_and_analyze_markets(api: CapitalAPI, categories: list, category_limits: dict = None) -> list:
     """
     Fetch all markets and calculate performance metrics
     
     Returns:
         List of dictionaries with market data and performance metrics
     """
-    # Category-specific limits
+    # Default category-specific limits
     CATEGORY_LIMITS = {
         'forex': 30,
         'commodities': 40,
@@ -205,6 +205,7 @@ def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
         'cryptocurrencies': 20,
     }
     
+    category_limits = category_limits or {}
     all_data = []
     total_markets = 0
     
@@ -218,7 +219,7 @@ def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
         
         # Apply category-specific limit
         category_lower = category.lower()
-        limit = CATEGORY_LIMITS.get(category_lower)
+        limit = category_limits.get(category_lower, CATEGORY_LIMITS.get(category_lower))
         if limit is not None:
             markets = markets[:limit]
             print(f"  Limiting to top {limit} {category} entries")
@@ -353,15 +354,29 @@ def main():
     """Main execution function"""
     parser = argparse.ArgumentParser(description="Capital.com Market Analyzer")
     parser.add_argument('--categories', nargs='+', help='Categories to process')
+    parser.add_argument('--category-limit', action='append', dest='category_limit', help='Category limit values in the form category:limit')
     args = parser.parse_args()
 
     target_categories = args.categories if args.categories else config.CATEGORIES
+    category_limits = {}
+    if args.category_limit:
+        for item in args.category_limit:
+            if ':' in item:
+                category_name, limit_value = item.split(':', 1)
+                category_name = category_name.strip().lower()
+                try:
+                    limit = int(limit_value)
+                except ValueError:
+                    continue
+                category_limits[category_name] = limit
 
     print("="*60)
     print("Capital.com Market Analyzer")
     print("="*60)
     print(f"Environment: {'DEMO' if config.USE_DEMO else 'LIVE'}")
     print(f"Categories: {', '.join(target_categories)}")
+    if category_limits:
+        print(f"Custom category limits: {category_limits}")
     print(f"Database: market_data.db (primary storage)")
     print("="*60)
     
@@ -385,7 +400,7 @@ def main():
     
     # Fetch and analyze markets
     start_time = datetime.now()
-    market_data = fetch_and_analyze_markets(api, target_categories)
+    market_data = fetch_and_analyze_markets(api, target_categories, category_limits)
     end_time = datetime.now()
     
     # Store to database (primary storage)

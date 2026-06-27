@@ -35,7 +35,3 @@ MAX_MARKETS_PER_CATEGORY = None
 
 # Maximum threads for parallel processing (speed up data fetch)
 MAX_THREADS = 5
-
-# Automatic hourly refresh (seconds)
-AUTO_REFRESH_INTERVAL_SECONDS = 3600
-ENABLE_AUTO_REFRESH = True

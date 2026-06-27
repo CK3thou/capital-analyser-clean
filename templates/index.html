@@ -1003,14 +1003,11 @@
             btn.disabled = false;
             btnText.textContent = '▶ Start Analyzer';
             statusDot.classList.remove('running');
-            statusText.textContent = '✅ Complete! Refreshing data...';
+            statusText.textContent = '✅ Complete!';
             analyzerRunning = false;
 
-            // Reload data
-            setTimeout(() => {
-                loadData();
-                statusText.textContent = 'Ready';
-            }, 1000);
+            loadData();
+            statusText.textContent = 'Ready';
         }
 
         function onAnalyzerError(message) {
@@ -1321,8 +1318,6 @@
             populateCategoryCheckboxes(); // Populate checkboxes
             loadData();
         });
-        // Auto-refresh every 60 seconds
-        setInterval(loadData, 60000);
     </script>
 </body>
 </html>

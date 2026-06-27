@@ -39,6 +39,8 @@ ANALYZER_RUNNING = False
 AUTO_REFRESH_THREAD = None
 AUTO_REFRESH_INTERVAL = getattr(config, 'AUTO_REFRESH_INTERVAL_SECONDS', 3600)
 ENABLE_AUTO_REFRESH = getattr(config, 'ENABLE_AUTO_REFRESH', True)
+APP_STARTUP_DONE = False
+AUTO_REFRESH_STARTED = False
 
 
 def init_db():
@@ -456,9 +458,9 @@ def analyzer_status():
 
 def start_auto_refresh(categories=None, category_limits=None):
     """Start the hourly auto-refresh loop in a background thread."""
-    global AUTO_REFRESH_THREAD
+    global AUTO_REFRESH_THREAD, AUTO_REFRESH_STARTED
 
-    if not ENABLE_AUTO_REFRESH:
+    if not ENABLE_AUTO_REFRESH or AUTO_REFRESH_STARTED:
         return
 
     def refresh_loop():
@@ -473,6 +475,15 @@ def start_auto_refresh(categories=None, category_limits=None):
 
     AUTO_REFRESH_THREAD = threading.Thread(target=refresh_loop, daemon=True)
     AUTO_REFRESH_THREAD.start()
+    AUTO_REFRESH_STARTED = True
+
+
+@app.before_request
+def ensure_auto_refresh_started():
+    """Ensure auto-refresh starts when the Flask app is first used."""
+    if ENABLE_AUTO_REFRESH and not AUTO_REFRESH_STARTED:
+        print(f"[INFO] Starting auto-refresh on first request (every {AUTO_REFRESH_INTERVAL} seconds)")
+        start_auto_refresh()
 
 
 @app.route('/api/analyzer/run', methods=['POST'])

@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import json
+import time
 import config # Import config for available categories
 from datetime import datetime
 from pathlib import Path
@@ -35,6 +36,9 @@ DB_PATH = 'market_data.db'
 CSV_FILE = 'capital_markets_analysis.csv'
 ANALYZER_PROCESS = None
 ANALYZER_RUNNING = False
+AUTO_REFRESH_THREAD = None
+AUTO_REFRESH_INTERVAL = getattr(config, 'AUTO_REFRESH_INTERVAL_SECONDS', 3600)
+ENABLE_AUTO_REFRESH = getattr(config, 'ENABLE_AUTO_REFRESH', True)
 
 
 def init_db():
@@ -450,6 +454,27 @@ def analyzer_status():
     })
 
 
+def start_auto_refresh(categories=None, category_limits=None):
+    """Start the hourly auto-refresh loop in a background thread."""
+    global AUTO_REFRESH_THREAD
+
+    if not ENABLE_AUTO_REFRESH:
+        return
+
+    def refresh_loop():
+        while True:
+            if not ANALYZER_RUNNING:
+                print(f"[INFO] Auto-refresh: running analyzer now (interval={AUTO_REFRESH_INTERVAL}s)")
+                run_analyzer(categories, category_limits)
+            else:
+                print("[INFO] Auto-refresh: analyzer already running; waiting for next interval")
+
+            time.sleep(AUTO_REFRESH_INTERVAL)
+
+    AUTO_REFRESH_THREAD = threading.Thread(target=refresh_loop, daemon=True)
+    AUTO_REFRESH_THREAD.start()
+
+
 @app.route('/api/analyzer/run', methods=['POST'])
 def analyzer_run():
     """Start analyzer"""
@@ -493,6 +518,13 @@ if __name__ == '__main__':
     if os.path.exists(CSV_FILE):
         import_csv_to_db(CSV_FILE)
         print(f"[OK] Data imported from {CSV_FILE}")
+
+    # Start hourly auto-refresh in the background
+    if ENABLE_AUTO_REFRESH:
+        print(f"[INFO] Starting auto-refresh thread (every {AUTO_REFRESH_INTERVAL} seconds)")
+        start_auto_refresh()
+    else:
+        print("[INFO] Auto-refresh is disabled")
     
     print("="*60)
     print("Capital.com Market Analyzer - Web Interface")

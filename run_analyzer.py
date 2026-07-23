@@ -11,6 +11,8 @@ import argparse
 from capital_analyzer import CapitalAPI
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 # Import configuration
 try:
@@ -26,6 +28,82 @@ def format_percentage(value: float) -> str:
     if value is None:
         return "N/A"
     return f"{value:.2f}%"
+
+
+_thread_local = threading.local()
+
+
+def _get_worker_api() -> CapitalAPI:
+    """Create one API client per worker thread for parallel fetching."""
+    api = getattr(_thread_local, "api", None)
+    if api is None:
+        api = CapitalAPI(
+            api_key=config.API_KEY,
+            identifier=config.USERNAME,
+            password=config.PASSWORD,
+            demo=config.USE_DEMO,
+        )
+        if not api.create_session():
+            raise RuntimeError("Failed to create session for parallel worker")
+        _thread_local.api = api
+    return api
+
+
+def _build_market_record(category: str, market: dict, request_delay: float) -> dict | None:
+    """Fetch details and performance metrics for one market."""
+    api = _get_worker_api()
+    epic = market.get('epic')
+    name = market.get('instrumentName', epic)
+
+    if request_delay > 0:
+        time.sleep(request_delay)
+
+    details = api.get_market_details(epic)
+    if not details:
+        print(f"    [WARNING] Could not fetch details for {epic}")
+        return None
+
+    snapshot = details.get('snapshot', {})
+    instrument = details.get('instrument', {})
+    performance = api.calculate_performance(epic)
+    rsi_vals = api.calculate_rsi_metrics(epic)
+
+    def fmt_rsi(v):
+        if v is None:
+            return "N/A"
+        return f"{v:.2f}"
+
+    return {
+        'Category': category.title(),
+        'Symbol': epic,
+        'Name': name,
+        'Current Price': snapshot.get('bid', 'N/A'),
+        'Currency': instrument.get('currency', 'N/A'),
+        'Price Change %': format_percentage(snapshot.get('percentageChange')),
+        'Perf % 30M': format_percentage(performance.get('perf_30m')),
+        'Perf % 1H': format_percentage(performance.get('perf_1h')),
+        'Perf % 4H': format_percentage(performance.get('perf_4h')),
+        'Perf % 6H': format_percentage(performance.get('perf_6h')),
+        'Perf % 1D': format_percentage(performance.get('perf_1d')),
+        'Perf % 1W': format_percentage(performance.get('perf_1w')),
+        'Perf % 1M': format_percentage(performance.get('perf_1m')),
+        'Perf % 3M': format_percentage(performance.get('perf_3m')),
+        'Perf % 6M': format_percentage(performance.get('perf_6m')),
+        'Perf % YTD': format_percentage(performance.get('perf_ytd')),
+        'Perf % 1Y': format_percentage(performance.get('perf_1y')),
+        'Perf % 5Y': format_percentage(performance.get('perf_5y')),
+        'Perf % 10Y': format_percentage(performance.get('perf_10y')),
+        'RSI 1H': fmt_rsi(rsi_vals.get('rsi_1h')),
+        'RSI 4H': fmt_rsi(rsi_vals.get('rsi_4h')),
+        'RSI 24H': fmt_rsi(rsi_vals.get('rsi_24h')),
+        'RSI 1W': fmt_rsi(rsi_vals.get('rsi_1w')),
+        'RSI 1M': fmt_rsi(rsi_vals.get('rsi_1m')),
+        'RSI 3M': fmt_rsi(rsi_vals.get('rsi_3m')),
+        'RSI 6M': fmt_rsi(rsi_vals.get('rsi_6m')),
+        'RSI YTD': fmt_rsi(rsi_vals.get('rsi_ytd')),
+        'Market Status': snapshot.get('marketStatus', 'N/A'),
+        'Type': instrument.get('type', category.upper()),
+    }
 
 
 def init_database(db_path: str = 'market_data.db'):
@@ -207,6 +285,8 @@ def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
     
     all_data = []
     total_markets = 0
+    max_workers = max(1, int(getattr(config, 'MAX_THREADS', 5)))
+    request_delay = max(0.0, float(getattr(config, 'REQUEST_DELAY', 0.15)))
     
     for category in categories:
         print(f"\n{'='*60}")
@@ -223,73 +303,45 @@ def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
             markets = markets[:limit]
             print(f"  Limiting to top {limit} {category} entries")
         
-        for idx, market in enumerate(markets, 1):
-            epic = market.get('epic')
-            name = market.get('instrumentName', epic)
-            
-            print(f"  [{idx}/{len(markets)}] Processing {name} ({epic})...")
-            
-            # Get market details
-            details = api.get_market_details(epic)
-            
-            if not details:
-                print(f"    [WARNING] Could not fetch details for {epic}")
-                continue
-            
-            snapshot = details.get('snapshot', {})
-            instrument = details.get('instrument', {})
-            
-            # Calculate performance metrics
-            performance = api.calculate_performance(epic)
-            rsi_vals = api.calculate_rsi_metrics(epic)
+        if len(markets) > 1 and max_workers > 1:
+            print(f"  Using up to {max_workers} workers for parallel detail fetches")
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_index = {
+                    executor.submit(_build_market_record, category, market, request_delay): idx
+                    for idx, market in enumerate(markets, 1)
+                }
 
-            def fmt_rsi(v):
-                if v is None:
-                    return "N/A"
-                return f"{v:.2f}"
+                for future in as_completed(future_to_index):
+                    idx = future_to_index[future]
+                    try:
+                        market_data = future.result()
+                    except Exception as exc:
+                        print(f"  [{idx}/{len(markets)}] [WARNING] Failed to process market: {exc}")
+                        continue
 
-            # Compile data
-            market_data = {
-                'Category': category.title(),
-                'Symbol': epic,
-                'Name': name,
-                'Current Price': snapshot.get('bid', 'N/A'),
-                'Currency': instrument.get('currency', 'N/A'),
-                'Price Change %': format_percentage(snapshot.get('percentageChange')),
-                'Perf % 30M': format_percentage(performance.get('perf_30m')),
-                'Perf % 1H': format_percentage(performance.get('perf_1h')),
-                'Perf % 4H': format_percentage(performance.get('perf_4h')),
-                'Perf % 6H': format_percentage(performance.get('perf_6h')),
-                'Perf % 1D': format_percentage(performance.get('perf_1d')),
-                'Perf % 1W': format_percentage(performance.get('perf_1w')),
-                'Perf % 1M': format_percentage(performance.get('perf_1m')),
-                'Perf % 3M': format_percentage(performance.get('perf_3m')),
-                'Perf % 6M': format_percentage(performance.get('perf_6m')),
-                'Perf % YTD': format_percentage(performance.get('perf_ytd')),
-                'Perf % 1Y': format_percentage(performance.get('perf_1y')),
-                'Perf % 5Y': format_percentage(performance.get('perf_5y')),
-                'Perf % 10Y': format_percentage(performance.get('perf_10y')),
-                'RSI 1H': fmt_rsi(rsi_vals.get('rsi_1h')),
-                'RSI 4H': fmt_rsi(rsi_vals.get('rsi_4h')),
-                'RSI 24H': fmt_rsi(rsi_vals.get('rsi_24h')),
-                'RSI 1W': fmt_rsi(rsi_vals.get('rsi_1w')),
-                'RSI 1M': fmt_rsi(rsi_vals.get('rsi_1m')),
-                'RSI 3M': fmt_rsi(rsi_vals.get('rsi_3m')),
-                'RSI 6M': fmt_rsi(rsi_vals.get('rsi_6m')),
-                'RSI YTD': fmt_rsi(rsi_vals.get('rsi_ytd')),
-                'Market Status': snapshot.get('marketStatus', 'N/A'),
-                'Type': instrument.get('type', category.upper()),
-            }
-            
-            all_data.append(market_data)
-            total_markets += 1
-            
-            # Rate limiting
-            time.sleep(getattr(config, 'REQUEST_DELAY', 0.15))
-            
-            # Ping session every 20 requests to keep it alive
-            if idx % 20 == 0:
-                api.ping()
+                    if market_data is not None:
+                        print(f"  [{idx}/{len(markets)}] Completed {market_data['Name']} ({market_data['Symbol']})")
+                        all_data.append(market_data)
+                        total_markets += 1
+        else:
+            for idx, market in enumerate(markets, 1):
+                epic = market.get('epic')
+                name = market.get('instrumentName', epic)
+                
+                print(f"  [{idx}/{len(markets)}] Processing {name} ({epic})...")
+                market_data = _build_market_record(category, market, request_delay)
+                
+                if market_data is None:
+                    continue
+
+                all_data.append(market_data)
+                total_markets += 1
+                
+                # Ping session every 20 requests to keep it alive
+                if idx % 20 == 0:
+                    api.ping()
+
+        api.ping()
     
     print(f"\n{'='*60}")
     print(f"[OK] Completed! Processed {total_markets} markets across {len(categories)} categories")

@@ -30,6 +30,10 @@ CATEGORIES = [
 # Rate limiting (seconds to wait between API calls)
 REQUEST_DELAY = 0.15
 
+# Auto-refresh settings
+AUTO_REFRESH_ENABLED = True
+AUTO_REFRESH_INTERVAL_HOURS = 1
+
 # Maximum markets to fetch per category (set to None for all)
 MAX_MARKETS_PER_CATEGORY = None
 

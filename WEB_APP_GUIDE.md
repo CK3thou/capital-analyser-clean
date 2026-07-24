@@ -15,7 +15,7 @@ The Capital.com Market Analyzer is now a **modern web application** built with F
 🚀 **Integrated Analyzer Control**
 - Run the analyzer directly from the web interface
 - Live status indicator while running
-- Automatic data refresh on completion
+- Manual data refresh after completion
 - Background processing (doesn't block the UI)
 
 📊 **Market Data Management**
@@ -69,7 +69,7 @@ The application will start on **http://localhost:5000**
 - Open http://localhost:5000 in your browser
 - Click the **"Start Analyzer"** button
 - Watch the status indicator as it fetches and processes data
-- Data automatically refreshes when complete
+- Data is refreshed manually when needed
 
 **Option B: Run Command Line**
 ```bash
@@ -153,7 +153,7 @@ For advanced users, these REST endpoints are available:
 ## Performance Notes
 
 - First run may take a few minutes depending on categories configured
-- Data auto-refreshes every 60 seconds
+- Data refreshes only when you click the Refresh button
 - Analyzer runs in background thread to avoid blocking the UI
 - SQLite database is lightweight and suitable for storing thousands of markets
 

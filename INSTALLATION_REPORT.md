@@ -149,7 +149,7 @@ Enhanced Existing Endpoints:
 New Features:
   • Background thread processing
   • Status polling mechanism
-  • Automatic data refresh
+  • Manual data refresh
   • Error handling
   • Thread-safe operations
 

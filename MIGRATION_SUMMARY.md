@@ -19,7 +19,7 @@
 - Integrated analyzer control endpoints
 - Background task processing for analyzer
 - Real-time status monitoring
-- Automatic data refresh on completion
+- Manual refresh after analyzer runs
 - RESTful API for market data and analyzer control
 - Threading support for non-blocking execution
 
@@ -41,7 +41,7 @@
 **Features:**
 - Start analyzer directly from web interface
 - Live progress indication
-- Auto-refresh data on completion
+- Manual refresh data after completion
 - Beautiful Material Design dark theme
 - Fully responsive layout
 - Interactive filtering and sorting

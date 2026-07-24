@@ -10,7 +10,6 @@ import os
 import subprocess
 import sys
 import json
-import re
 import time
 import config # Import config for available categories
 from datetime import datetime, timedelta
@@ -38,11 +37,6 @@ CSV_FILE = 'capital_markets_analysis.csv'
 ANALYZER_PROCESS = None
 ANALYZER_RUNNING = False
 APP_STARTUP_DONE = False
-AUTO_REFRESH_ENABLED = getattr(config, 'AUTO_REFRESH_ENABLED', True)
-AUTO_REFRESH_INTERVAL_HOURS = getattr(config, 'AUTO_REFRESH_INTERVAL_HOURS', 1)
-AUTO_REFRESH_THREAD = None
-AUTO_REFRESH_STOP = threading.Event()
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.py')
 
 
 def init_db():
@@ -234,81 +228,6 @@ def get_last_fetch_time():
         return result[0] if result else "Never"
     except:
         return "Unknown"
-
-
-def should_refresh_data(now=None, interval_hours=None):
-    """Return True when the data should be refreshed again."""
-    if not AUTO_REFRESH_ENABLED:
-        return False
-
-    if now is None:
-        now = datetime.now()
-    if interval_hours is None:
-        interval_hours = AUTO_REFRESH_INTERVAL_HOURS
-
-    try:
-        last_fetch = get_last_fetch_time()
-        if last_fetch in (None, 'Never', 'Unknown'):
-            return True
-
-        last_dt = datetime.strptime(last_fetch, '%Y-%m-%d %H:%M:%S')
-        return now - last_dt >= timedelta(hours=interval_hours)
-    except ValueError:
-        return True
-
-
-def apply_refresh_settings(enabled=None, interval_hours=None):
-    """Update the runtime refresh settings and persist them to config.py."""
-    global AUTO_REFRESH_ENABLED, AUTO_REFRESH_INTERVAL_HOURS
-
-    if enabled is not None:
-        AUTO_REFRESH_ENABLED = bool(enabled)
-    if interval_hours is not None:
-        try:
-            parsed = int(interval_hours)
-        except (TypeError, ValueError):
-            raise ValueError('Refresh interval must be a whole number of hours')
-        if parsed < 1:
-            raise ValueError('Refresh interval must be at least 1 hour')
-        AUTO_REFRESH_INTERVAL_HOURS = parsed
-
-    if hasattr(config, 'AUTO_REFRESH_ENABLED'):
-        config.AUTO_REFRESH_ENABLED = AUTO_REFRESH_ENABLED
-    if hasattr(config, 'AUTO_REFRESH_INTERVAL_HOURS'):
-        config.AUTO_REFRESH_INTERVAL_HOURS = AUTO_REFRESH_INTERVAL_HOURS
-
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as handle:
-                content = handle.read()
-
-            content = re.sub(
-                r'(?m)^AUTO_REFRESH_ENABLED\s*=\s*(True|False)',
-                f'AUTO_REFRESH_ENABLED = {str(AUTO_REFRESH_ENABLED)}',
-                content,
-                count=1,
-            )
-            content = re.sub(
-                r'(?m)^AUTO_REFRESH_INTERVAL_HOURS\s*=\s*[-\d.]+',
-                f'AUTO_REFRESH_INTERVAL_HOURS = {AUTO_REFRESH_INTERVAL_HOURS}',
-                content,
-                count=1,
-            )
-
-            if 'AUTO_REFRESH_ENABLED' not in content:
-                content += f"\nAUTO_REFRESH_ENABLED = {str(AUTO_REFRESH_ENABLED)}\n"
-            if 'AUTO_REFRESH_INTERVAL_HOURS' not in content:
-                content += f"AUTO_REFRESH_INTERVAL_HOURS = {AUTO_REFRESH_INTERVAL_HOURS}\n"
-
-            with open(CONFIG_FILE, 'w', encoding='utf-8') as handle:
-                handle.write(content)
-        except Exception as exc:
-            print(f"[AUTO-REFRESH] Could not persist settings: {exc}")
-
-    return {
-        'enabled': AUTO_REFRESH_ENABLED,
-        'interval_hours': AUTO_REFRESH_INTERVAL_HOURS,
-    }
 
 
 def load_markets_from_db(category=None, search=None):
@@ -538,69 +457,12 @@ def run_analyzer(categories=None):
         }
 
 
-def periodic_refresh_loop():
-    """Refresh market data automatically according to the configured interval."""
-    while not AUTO_REFRESH_STOP.is_set():
-        try:
-            if not ANALYZER_RUNNING and should_refresh_data(interval_hours=AUTO_REFRESH_INTERVAL_HOURS):
-                print("[AUTO-REFRESH] Refreshing market data...")
-                result = run_analyzer()
-                if not result.get('success'):
-                    print(f"[AUTO-REFRESH] Refresh failed: {result.get('error') or result.get('stderr')}")
-        except Exception as exc:
-            print(f"[AUTO-REFRESH] Error: {exc}")
-
-        AUTO_REFRESH_STOP.wait(timeout=60)
-
-
-def start_background_refresh():
-    """Start the hourly background refresh loop."""
-    global AUTO_REFRESH_THREAD
-    if not AUTO_REFRESH_ENABLED:
-        return
-    if AUTO_REFRESH_THREAD and AUTO_REFRESH_THREAD.is_alive():
-        return
-
-    AUTO_REFRESH_THREAD = threading.Thread(target=periodic_refresh_loop, name='auto-refresh', daemon=True)
-    AUTO_REFRESH_THREAD.start()
-
-
-@app.route('/api/analyzer/settings', methods=['GET'])
-def analyzer_settings():
-    """Get the current auto-refresh settings."""
-    return jsonify({
-        'enabled': AUTO_REFRESH_ENABLED,
-        'interval_hours': AUTO_REFRESH_INTERVAL_HOURS,
-    })
-
-
-@app.route('/api/analyzer/settings', methods=['POST'])
-def update_analyzer_settings():
-    """Update the auto-refresh settings from the web UI."""
-    data = request.get_json(silent=True) or {}
-
-    try:
-        settings = apply_refresh_settings(
-            enabled=data.get('enabled', AUTO_REFRESH_ENABLED),
-            interval_hours=data.get('interval_hours', AUTO_REFRESH_INTERVAL_HOURS),
-        )
-    except ValueError as exc:
-        return jsonify({'success': False, 'error': str(exc)}), 400
-
-    if AUTO_REFRESH_ENABLED and not AUTO_REFRESH_THREAD:
-        start_background_refresh()
-
-    return jsonify({'success': True, **settings})
-
-
 @app.route('/api/analyzer/status')
 def analyzer_status():
     """Get analyzer status"""
     return jsonify({
         'running': ANALYZER_RUNNING,
         'last_fetch': get_last_fetch_time(),
-        'auto_refresh_enabled': AUTO_REFRESH_ENABLED,
-        'auto_refresh_interval_hours': AUTO_REFRESH_INTERVAL_HOURS,
     })
 
 
@@ -638,5 +500,4 @@ if __name__ == '__main__':
     print("Access at: http://localhost:5000")
     print("Press Ctrl+C to stop")
     print("="*60)
-    start_background_refresh()
     app.run(debug=False, host='localhost', port=5000)

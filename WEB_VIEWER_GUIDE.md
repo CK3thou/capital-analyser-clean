@@ -10,7 +10,7 @@ The web viewer provides a beautiful, responsive interface to view your Capital.c
 ✅ Sortable columns
 ✅ Category badges with color coding
 ✅ Performance metrics with color indicators
-✅ Auto-refresh every 60 seconds
+✅ Manual refresh with the Refresh button
 ✅ Statistics dashboard
 
 ## Setup
@@ -73,7 +73,7 @@ Navigate to: **http://localhost:5000**
 
 ### Refresh Data
 - Click the 🔄 Refresh button to reload data
-- Or wait for auto-refresh (every 60 seconds)
+- Or refresh manually with the Refresh button
 
 ## Mobile Support
 The interface is fully responsive and works great on:

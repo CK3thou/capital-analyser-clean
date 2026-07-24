@@ -46,7 +46,7 @@ PHASE 3: WEB INTERFACE ENHANCEMENT ✅
 [✅] Make responsive on mobile
 [✅] Add pulsing animation for running state
 [✅] Update JavaScript to handle analyzer control
-[✅] Auto-refresh data on completion
+[✅] Manual refresh data when needed
 
 ════════════════════════════════════════════════════════════════
 
@@ -153,7 +153,7 @@ FEATURES NOW AVAILABLE
    ✅ Web button to start analyzer
    ✅ Live status indicator
    ✅ Non-blocking execution
-   ✅ Automatic data refresh
+   ✅ Manual data refresh
    ✅ Error handling
 
 📊 Data Management:

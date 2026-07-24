@@ -40,7 +40,7 @@ Then open **http://localhost:5000** in your browser 🌐
 - **Start the analyzer directly from the web interface**
 - One-click button to fetch market data
 - Live status indicator while running
-- Automatic data refresh on completion
+- Manual data refresh after completion
 - Background execution (non-blocking UI)
 
 ### 📊 Enhanced Data Visualization
@@ -88,7 +88,7 @@ Then open **http://localhost:5000** in your browser 🌐
 2. View existing market data or see "No Data" message
 3. Click **"⚡ Start Analyzer"** button
 4. Watch the **status indicator** - it will pulse while running
-5. Data automatically refreshes when done ✅
+5. Refresh the page manually when you want updated data ✅
 
 ### From Command Line (Alternative)
 ```bash
@@ -150,11 +150,8 @@ Edit the last line of `app.py`:
 app.run(debug=False, host='localhost', port=8080)  # Change 5000 to 8080
 ```
 
-### Change Auto-Refresh Interval
-Edit `templates/index.html` line with `setInterval(loadData, 60000)`:
-```javascript
-setInterval(loadData, 30000)  // Refresh every 30 seconds instead of 60
-```
+### Refresh Data Manually
+Use the Refresh button in the interface to reload the latest market data whenever you want.
 
 ### Change Which Categories to Monitor
 Edit `config.py`:
@@ -173,7 +170,7 @@ CATEGORIES = ['forex', 'commodities', 'shares', 'indices']
 4. Browse the markets!
 
 ### Regular Updates
-- Data auto-refreshes every 60 seconds
+- Data is refreshed manually with the Refresh button
 - Click "Refresh" button to manually refresh
 - Click "Start Analyzer" to fetch new data from API
 

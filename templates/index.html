@@ -525,40 +525,6 @@
             font-size: 0.9rem;
         }
 
-        .refresh-settings {
-            margin-top: 16px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-items: center;
-            justify-content: center;
-            padding: 14px;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-        }
-
-        .refresh-setting-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-secondary);
-        }
-
-        .refresh-setting-group input[type="number"] {
-            width: 72px;
-            padding: 8px 10px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-primary);
-        }
-
-        .settings-status {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-    
         .category-selection-container {
             background: var(--bg-dark);
             border: 1px solid var(--border);
@@ -647,19 +613,7 @@
                     <div class="status-dot" id="statusDot"></div>
                     <div class="status-text" id="statusText">Ready</div>
                 </div>
-
-                <div class="refresh-settings">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="autoRefreshEnabled"> Enable auto-refresh
-                    </label>
-                    <label class="refresh-setting-group">
-                        <span>Refresh every</span>
-                        <input type="number" id="refreshIntervalHours" min="1" max="24" value="1">
-                        <span>hour(s)</span>
-                    </label>
-                    <button class="btn" id="saveRefreshSettingsBtn" onclick="saveRefreshSettings()">Save</button>
-                    <span class="settings-status" id="refreshSettingsStatus">Loading refresh settings...</span>
-                </div>
+                <div class="refresh-status-pill" id="refreshStatusPill">Last refresh: waiting for first load</div>
             </div>
         {% else %}
             <div class="runner-section">
@@ -686,19 +640,7 @@
                     <div class="status-dot" id="statusDot"></div>
                     <div class="status-text" id="statusText">Ready</div>
                 </div>
-
-                <div class="refresh-settings">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="autoRefreshEnabled"> Enable auto-refresh
-                    </label>
-                    <label class="refresh-setting-group">
-                        <span>Refresh every</span>
-                        <input type="number" id="refreshIntervalHours" min="1" max="24" value="1">
-                        <span>hour(s)</span>
-                    </label>
-                    <button class="btn" id="saveRefreshSettingsBtn" onclick="saveRefreshSettings()">Save</button>
-                    <span class="settings-status" id="refreshSettingsStatus">Loading refresh settings...</span>
-                </div>
+                <div class="refresh-status-pill" id="refreshStatusPill">Last refresh: waiting for first load</div>
             </div>
         {% endif %}
 
@@ -785,6 +727,14 @@
         const availableCategories = {{ available_categories | tojson }}; // Get categories from Flask
         let currentSort = { column: null, direction: 'asc' };
         let analyzerRunning = false;
+
+        function updateRefreshStatus(message, isActive = false) {
+            const pill = document.getElementById('refreshStatusPill');
+            if (!pill) return;
+            pill.textContent = message;
+            pill.classList.toggle('active', isActive);
+        }
+
         function readStoredTableModeRsi() {
             try {
                 const v = localStorage.getItem(TABLE_MODE_STORAGE_KEY);
@@ -925,55 +875,6 @@
             document.getElementById('selectAllCategories').checked = allChecked;
         }
 
-        async function loadRefreshSettings() {
-            try {
-                const response = await fetch('/api/analyzer/settings', { cache: 'no-store' });
-                const data = await response.json();
-                document.getElementById('autoRefreshEnabled').checked = data.enabled !== false;
-                document.getElementById('refreshIntervalHours').value = data.interval_hours || 1;
-                document.getElementById('refreshSettingsStatus').textContent = `Auto-refresh: ${data.enabled !== false ? 'enabled' : 'disabled'} • every ${data.interval_hours || 1} hour(s)`;
-            } catch (error) {
-                console.error('Error loading refresh settings:', error);
-                document.getElementById('refreshSettingsStatus').textContent = 'Unable to load refresh settings';
-            }
-        }
-
-        async function saveRefreshSettings() {
-            const enabled = document.getElementById('autoRefreshEnabled').checked;
-            const intervalInput = document.getElementById('refreshIntervalHours');
-            const intervalHours = parseInt(intervalInput.value, 10);
-            const status = document.getElementById('refreshSettingsStatus');
-            const saveBtn = document.getElementById('saveRefreshSettingsBtn');
-
-            if (Number.isNaN(intervalHours) || intervalHours < 1) {
-                status.textContent = 'Interval must be at least 1 hour';
-                return;
-            }
-
-            saveBtn.disabled = true;
-            status.textContent = 'Saving...';
-
-            try {
-                const response = await fetch('/api/analyzer/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ enabled, interval_hours: intervalHours })
-                });
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Failed to update settings');
-                }
-
-                status.textContent = `Saved • ${data.enabled ? 'enabled' : 'disabled'} • every ${data.interval_hours} hour(s)`;
-            } catch (error) {
-                console.error('Error saving refresh settings:', error);
-                status.textContent = 'Unable to save refresh settings';
-            } finally {
-                saveBtn.disabled = false;
-            }
-        }
-
         async function runAnalyzer() {
             if (analyzerRunning) {
                 alert('Analyzer is already running!');
@@ -1094,6 +995,8 @@
                 const data = await response.json();
                 
                 allMarkets = data;
+                const now = new Date();
+                updateRefreshStatus(`Last refresh: ${now.toLocaleTimeString()} • ${allMarkets.length} markets`, true);
 
                 if (allMarkets.length === 0) {
                     loadingState.style.display = 'none';
@@ -1372,7 +1275,6 @@
         // Load data on page load
         document.addEventListener('DOMContentLoaded', () => {
             populateCategoryCheckboxes(); // Populate checkboxes
-            loadRefreshSettings();
             loadData();
         });
     </script>

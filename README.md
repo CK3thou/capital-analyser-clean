@@ -36,7 +36,7 @@ The web interface includes:
 - Category filtering
 - Sortable columns
 - Color-coded performance metrics
-- Auto-refresh functionality
+- Manual refresh functionality
 
 Access at: http://localhost:5000
 

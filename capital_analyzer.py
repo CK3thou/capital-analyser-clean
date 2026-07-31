@@ -209,14 +209,14 @@ class CapitalAPI:
             "Content-Type": "application/json"
         }
     
-    def get_markets_by_category(self, category: str, limit: int = 100) -> List[Dict]:
+    def get_markets_by_category(self, category: str, limit: Optional[int] = None) -> List[Dict]:
         """
         Get all markets for a specific category by exploring the navigation hierarchy
-        with retry logic for transient failures
+        with retry logic for transient failures.
         
         Args:
             category: One of 'commodities', 'forex', 'indices', 'cryptocurrencies', 'shares', 'etf'
-            limit: Maximum number of results per sub-category (default 100, max supported by API)
+            limit: Maximum number of results per sub-category. When None, no server-side cap is applied.
         
         Returns:
             List of market dictionaries
@@ -250,7 +250,11 @@ class CapitalAPI:
                 # Retry logic for individual node fetches
                 for attempt in range(1, max_retries + 1):
                     try:
-                        response = self.session.get(url, headers=headers, params={"limit": limit}, timeout=10)
+                        params = {}
+                        if limit is not None:
+                            params["limit"] = limit
+
+                        response = self.session.get(url, headers=headers, params=params, timeout=10)
                         
                         if response.status_code == 200:
                             data = response.json()

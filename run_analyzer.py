@@ -181,15 +181,29 @@ def _ensure_rsi_columns(conn):
     conn.commit()
 
 
-def store_to_database(market_data: list, db_path: str = 'market_data.db'):
-    """Store market data directly to SQLite database"""
+def store_to_database(market_data: list, db_path: str = 'market_data.db', categories: list | None = None):
+    """Store market data directly to SQLite database.
+
+    When categories are provided, only rows for those categories are replaced so a
+    subset fetch does not erase unrelated data. If no categories are provided,
+    the full table is replaced.
+    """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     _ensure_rsi_columns(conn)
 
     try:
-        # Clear existing data
-        cursor.execute('DELETE FROM markets')
+        selected_categories = [c.lower() for c in (categories or [])]
+
+        if selected_categories:
+            placeholders = ", ".join("?" for _ in selected_categories)
+            cursor.execute(
+                f"DELETE FROM markets WHERE lower(category) IN ({placeholders})",
+                selected_categories,
+            )
+        else:
+            # Clear existing data
+            cursor.execute('DELETE FROM markets')
         
         # Parse percentage value
         def parse_pct(val):
@@ -266,15 +280,20 @@ def store_to_database(market_data: list, db_path: str = 'market_data.db'):
         conn.close()
 
 
-def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
+def resolve_market_limit(category: str, configured_limit: int | None = None, use_category_defaults: bool = False) -> int | None:
+    """Resolve the effective cap for a category.
+
+    The configured limit from config.py takes precedence when set. When it is
+    explicitly None, we treat that as "no cap". Category defaults are only used
+    when explicitly requested by the caller.
     """
-    Fetch all markets and calculate performance metrics
-    
-    Returns:
-        List of dictionaries with market data and performance metrics
-    """
-    # Category-specific limits
-    CATEGORY_LIMITS = {
+    if configured_limit is not None:
+        return configured_limit
+
+    if not use_category_defaults:
+        return None
+
+    category_limits = {
         'forex': 30,
         'commodities': 50,
         'shares': 20,
@@ -282,7 +301,17 @@ def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
         'etf': 50,
         'cryptocurrencies': 20,
     }
+
+    return category_limits.get(category.lower(), 100)
+
+
+def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
+    """
+    Fetch all markets and calculate performance metrics
     
+    Returns:
+        List of dictionaries with market data and performance metrics
+    """
     all_data = []
     total_markets = 0
     max_workers = max(1, int(getattr(config, 'MAX_THREADS', 5)))
@@ -293,15 +322,19 @@ def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:
         print(f"Processing category: {category.upper()}")
         print(f"{'='*60}")
         
-        # Fetch markets in this category
-        markets = api.get_markets_by_category(category)
-        
-        # Apply category-specific limit
         category_lower = category.lower()
-        limit = CATEGORY_LIMITS.get(category_lower)
+        configured_limit = getattr(config, 'MAX_MARKETS_PER_CATEGORY', None)
+        limit = resolve_market_limit(category_lower, configured_limit)
+
+        if limit is None:
+            print(f"  Fetching all available {category} entries")
+        else:
+            print(f"  Limiting to top {limit} {category} entries")
+
+        # Fetch markets in this category
+        markets = api.get_markets_by_category(category, limit=limit)
         if limit is not None:
             markets = markets[:limit]
-            print(f"  Limiting to top {limit} {category} entries")
         
         if len(markets) > 1 and max_workers > 1:
             print(f"  Using up to {max_workers} workers for parallel detail fetches")
@@ -401,6 +434,30 @@ def export_to_csv(data: list, filename: str):
         print(f"[ERROR] Error exporting to CSV: {str(e)}")
 
 
+def export_to_category_files(data: list, categories: list | None = None, output_dir: str = 'category_exports'):
+    """Write a separate CSV file per category for easy per-category storage."""
+    if not data:
+        return
+
+    os.makedirs(output_dir, exist_ok=True)
+    selected_categories = {c.lower() for c in (categories or [])}
+
+    grouped = {}
+    for row in data:
+        category_name = str(row.get('Category', '')).strip()
+        if not category_name:
+            continue
+        key = category_name.lower()
+        if selected_categories and key not in selected_categories:
+            continue
+        grouped.setdefault(category_name, []).append(row)
+
+    for category_name, rows in grouped.items():
+        safe_name = ''.join(ch if ch.isalnum() else '_' for ch in category_name.lower()).strip('_') or 'unknown'
+        file_path = os.path.join(output_dir, f"{safe_name}.csv")
+        export_to_csv(rows, file_path)
+
+
 def main():
     """Main execution function"""
     parser = argparse.ArgumentParser(description="Capital.com Market Analyzer")
@@ -443,12 +500,13 @@ def main():
     # Store to database (primary storage)
     if market_data:
         print("\nStoring data to database...")
-        store_to_database(market_data, 'market_data.db')
+        store_to_database(market_data, 'market_data.db', categories=target_categories)
     
     # Also export to CSV for backup
     if market_data:
         print("Exporting data to CSV (backup)...")
         export_to_csv(market_data, config.OUTPUT_FILENAME)
+        export_to_category_files(market_data, target_categories)
     
     # Print summary
     duration = (end_time - start_time).total_seconds()

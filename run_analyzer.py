@@ -280,12 +280,12 @@ def store_to_database(market_data: list, db_path: str = 'market_data.db', catego
         conn.close()
 
 
-def resolve_market_limit(category: str, configured_limit: int | None = None, use_category_defaults: bool = False) -> int | None:
+def resolve_market_limit(category: str, configured_limit: int | None = None, use_category_defaults: bool = True) -> int | None:
     """Resolve the effective cap for a category.
 
     The configured limit from config.py takes precedence when set. When it is
-    explicitly None, we treat that as "no cap". Category defaults are only used
-    when explicitly requested by the caller.
+    explicitly None, we fall back to the built-in category defaults so the
+    fetch only pulls the most traded items for that category.
     """
     if configured_limit is not None:
         return configured_limit
@@ -294,12 +294,12 @@ def resolve_market_limit(category: str, configured_limit: int | None = None, use
         return None
 
     category_limits = {
-        'forex': 30,
+        'forex': 50,
         'commodities': 50,
-        'shares': 20,
+        'shares': 50,
         'indices': 50,
         'etf': 50,
-        'cryptocurrencies': 20,
+        'cryptocurrencies': 50,
     }
 
     return category_limits.get(category.lower(), 100)

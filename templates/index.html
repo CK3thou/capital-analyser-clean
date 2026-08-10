@@ -173,30 +173,71 @@
         }
 
         .controls {
-            background: var(--bg-card);
-            padding: 25px;
-            border-radius: 12px;
-            margin-bottom: 25px;
+            background: linear-gradient(180deg, rgba(30, 30, 30, 0.96), rgba(18, 18, 18, 0.98));
+            padding: 18px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
-            border: 1px solid var(--border);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 24px rgba(0, 0, 0, 0.18);
         }
 
         .search-box {
             flex: 1;
-            min-width: 250px;
+            min-width: 280px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .filter-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            min-height: 46px;
+        }
+
+        .filter-pill > span {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        select {
+            cursor: pointer;
+            min-width: 120px;
+            width: 100%;
+            padding: 0;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 0.95rem;
         }
 
         input[type="text"], select {
-            width: 100%;
-            padding: 12px 16px;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 1rem;
             transition: border-color 0.2s;
         }
 
@@ -205,33 +246,30 @@
             border-color: var(--primary);
         }
 
-        select {
-            cursor: pointer;
-            min-width: 180px;
-        }
-
         .btn {
-            padding: 12px 24px;
+            padding: 11px 18px;
             background: var(--primary);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 999px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
-            transition: background 0.2s;
+            transition: background 0.2s, transform 0.2s;
+            box-shadow: 0 10px 20px rgba(25, 118, 210, 0.2);
         }
 
         .btn:hover {
             background: var(--primary-dark);
+            transform: translateY(-1px);
         }
 
         .table-container {
             background: var(--bg-card);
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         table {
@@ -318,6 +356,56 @@
 
         .perf-neutral {
             color: var(--text-secondary);
+        }
+
+        .perf-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .perf-chip.positive {
+            background: rgba(76, 175, 80, 0.16);
+            color: var(--success);
+        }
+
+        .perf-chip.negative {
+            background: rgba(244, 67, 54, 0.16);
+            color: var(--danger);
+        }
+
+        .summary-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .summary-pill {
+            background: linear-gradient(135deg, rgba(25, 118, 210, 0.16), rgba(255, 255, 255, 0.03));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .summary-label {
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+        }
+
+        .summary-value {
+            font-size: 1.08rem;
+            font-weight: 700;
+            color: var(--text-primary);
         }
 
         .loading {
@@ -571,78 +659,93 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <div class="header-top">
-                <div style="width: 140px; flex-shrink: 0;"></div>
-                <div class="header-titles">
-                    <h1>📊 Capital.com Market Analyzer</h1>
-                    <p class="subtitle">Real-time market performance tracking across multiple asset classes</p>
+        <header class="app-header">
+            <div class="brand-block">
+                <div class="brand-mark">C</div>
+                <div>
+                    <div class="eyebrow">Capital Market Intelligence</div>
+                    <h1>Capital.com Market Analyzer</h1>
+                    <p class="subtitle">Track market momentum, RSI context, and category performance from one streamlined workspace.</p>
                 </div>
-                <button type="button"
-                        class="table-mode-toggle"
-                        id="marketTableModeToggle"
-                        aria-pressed="false"
-                        title="Switch timeframe columns between performance % and RSI (14)">
-                    RSI view
-                </button>
             </div>
+            <button type="button"
+                    class="table-mode-toggle"
+                    id="marketTableModeToggle"
+                    aria-pressed="false"
+                    title="Switch timeframe columns between performance % and RSI (14)">
+                RSI view
+            </button>
         </header>
 
-        {% if stats and stats.has_data %}
-            <div class="runner-section">
-                <div class="runner-title">⚡ Run Market Analysis</div>
-                <div class="runner-description">
-                    Fetch latest market data from Capital.com API and update the database with current performance metrics
+        <section class="hero-card">
+            <div class="hero-copy">
+                <div class="eyebrow">Live market overview</div>
+                <h2>Run a fresh analysis and spotlight the strongest movers in seconds.</h2>
+                <p>Fetch the latest Capital.com data, compare performance windows, and surface RSI clusters without leaving your dashboard.</p>
+                <div class="hero-badges">
+                    <span class="hero-badge">⚡ Fast refresh</span>
+                    <span class="hero-badge">📈 Multi-timeframe insights</span>
+                    <span class="hero-badge">🧠 RSI-ready view</span>
                 </div>
-
-                <div class="category-selection-container">
-                    <div class="category-checkbox-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="selectAllCategories"> Select All
-                        </label>
-                    </div>
-                    <div id="categoryCheckboxes" class="category-checkbox-grid">
-                        <!-- Category checkboxes will be dynamically loaded here -->
-                    </div>
-                </div>
-
-                <button class="run-analyzer-btn" id="runAnalyzerBtn" onclick="runAnalyzer()">
-                    <span id="btnText">▶ Start Analyzer</span>
-                </button>
-                <div class="status-indicator" id="statusIndicator">
-                    <div class="status-dot" id="statusDot"></div>
-                    <div class="status-text" id="statusText">Ready</div>
-                </div>
-                <div class="refresh-status-pill" id="refreshStatusPill">Last refresh: waiting for first load</div>
             </div>
-        {% else %}
-            <div class="runner-section">
-                <div class="runner-title">⚡ Get Started</div>
-                <div class="runner-description">
-                    No data available yet. Click the button below to fetch market data from Capital.com API and populate the database.
-                </div>
+            <div class="hero-panel">
+                {% if stats and stats.has_data %}
+                    <div class="runner-section">
+                        <div class="runner-title">Run Market Analysis</div>
+                        <div class="runner-description">
+                            Fetch the latest data from Capital.com and update the database with current performance metrics.
+                        </div>
 
-                <div class="category-selection-container">
-                    <div class="category-checkbox-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="selectAllCategories"> Select All
-                        </label>
-                    </div>
-                    <div id="categoryCheckboxes" class="category-checkbox-grid">
-                        <!-- Category checkboxes will be dynamically loaded here -->
-                    </div>
-                </div>
+                        <div class="category-selection-container">
+                            <div class="category-checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="selectAllCategories"> Select All
+                                </label>
+                            </div>
+                            <div id="categoryCheckboxes" class="category-checkbox-grid">
+                                <!-- Category checkboxes will be dynamically loaded here -->
+                            </div>
+                        </div>
 
-                <button class="run-analyzer-btn" id="runAnalyzerBtn" onclick="runAnalyzer()">
-                    <span id="btnText">▶ Start Analyzer</span>
-                </button>
-                <div class="status-indicator" id="statusIndicator">
-                    <div class="status-dot" id="statusDot"></div>
-                    <div class="status-text" id="statusText">Ready</div>
-                </div>
-                <div class="refresh-status-pill" id="refreshStatusPill">Last refresh: waiting for first load</div>
+                        <button class="run-analyzer-btn" id="runAnalyzerBtn" onclick="runAnalyzer()">
+                            <span id="btnText">▶ Start Analyzer</span>
+                        </button>
+                        <div class="status-indicator" id="statusIndicator">
+                            <div class="status-dot" id="statusDot"></div>
+                            <div class="status-text" id="statusText">Ready</div>
+                        </div>
+                        <div class="refresh-status-pill" id="refreshStatusPill">Last refresh: waiting for first load</div>
+                    </div>
+                {% else %}
+                    <div class="runner-section">
+                        <div class="runner-title">Get Started</div>
+                        <div class="runner-description">
+                            No data is available yet. Start the analyzer to populate the database and begin exploring the market table.
+                        </div>
+
+                        <div class="category-selection-container">
+                            <div class="category-checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="selectAllCategories"> Select All
+                                </label>
+                            </div>
+                            <div id="categoryCheckboxes" class="category-checkbox-grid">
+                                <!-- Category checkboxes will be dynamically loaded here -->
+                            </div>
+                        </div>
+
+                        <button class="run-analyzer-btn" id="runAnalyzerBtn" onclick="runAnalyzer()">
+                            <span id="btnText">▶ Start Analyzer</span>
+                        </button>
+                        <div class="status-indicator" id="statusIndicator">
+                            <div class="status-dot" id="statusDot"></div>
+                            <div class="status-text" id="statusText">Ready</div>
+                        </div>
+                        <div class="refresh-status-pill" id="refreshStatusPill">Last refresh: waiting for first load</div>
+                    </div>
+                {% endif %}
             </div>
-        {% endif %}
+        </section>
 
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card">
@@ -655,7 +758,7 @@
             </div>
             <div class="stat-card">
                 <div class="stat-label">Top Performer</div>
-                <div class="stat-value" style="font-size: 1.2rem;" id="topPerformer">-</div>
+                <div class="stat-value" style="font-size: 1.06rem;" id="topPerformer">-</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Last Updated</div>
@@ -663,13 +766,35 @@
             </div>
         </div>
 
+        <div class="summary-strip">
+            <div class="summary-pill">
+                <span class="summary-label">Instruments</span>
+                <div class="summary-value" id="summaryInstruments">0</div>
+            </div>
+            <div class="summary-pill">
+                <span class="summary-label">1W Gainers</span>
+                <div class="summary-value" id="summaryGainers">0</div>
+            </div>
+            <div class="summary-pill">
+                <span class="summary-label">1W Losers</span>
+                <div class="summary-value" id="summaryLosers">0</div>
+            </div>
+            <div class="summary-pill">
+                <span class="summary-label">Best 1W</span>
+                <div class="summary-value" id="summaryBest">—</div>
+            </div>
+        </div>
+
         <div class="controls">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Search markets by name or EPIC...">
             </div>
-            <select id="categoryFilter">
-                <option value="">All Categories</option>
-            </select>
+            <div class="filter-pill">
+                <span>Category</span>
+                <select id="categoryFilter">
+                    <option value="">All</option>
+                </select>
+            </div>
             <button class="btn refresh-btn" onclick="loadData()">
                 <span class="refresh-icon">🔄</span>
                 Refresh
@@ -1018,11 +1143,44 @@
             }
         }
 
+        function updateSummaryMetrics() {
+            const instruments = allMarkets.length;
+            const perfValues = allMarkets.map(m => parseFloat(m['perf_1w']))
+                .filter(v => !isNaN(v));
+            const gainers = perfValues.filter(v => v > 0).length;
+            const losers = perfValues.filter(v => v < 0).length;
+
+            let best = null;
+            let worst = null;
+            allMarkets.forEach(m => {
+                const perfValue = parseFloat(m['perf_1w']);
+                if (isNaN(perfValue)) return;
+                if (!best || perfValue > best.value) {
+                    best = { name: m.Name, value: perfValue };
+                }
+                if (!worst || perfValue < worst.value) {
+                    worst = { name: m.Name, value: perfValue };
+                }
+            });
+
+            document.getElementById('summaryInstruments').textContent = instruments;
+            document.getElementById('summaryGainers').textContent = gainers;
+            document.getElementById('summaryLosers').textContent = losers;
+            document.getElementById('summaryBest').innerHTML = best
+                ? `<span class="${best.value >= 0 ? 'positive' : 'negative'}">${best.name}</span>`
+                : '—';
+
+            if (worst && worst.value < 0) {
+                document.getElementById('summaryLosers').innerHTML = `${losers} <span class="negative" style="font-size: 0.8rem;">${worst.name}</span>`;
+            }
+        }
+
         async function updateStats() {
             document.getElementById('totalMarkets').textContent = allMarkets.length;
             
             const categories = new Set(allMarkets.map(m => m.Category));
             document.getElementById('totalCategories').textContent = categories.size;
+            updateSummaryMetrics();
 
             // Fetch and display last updated time
             try {
@@ -1178,7 +1336,6 @@
                 return '<span class="perf-neutral">N/A</span>';
             }
             
-            // Remove % sign if present
             const cleanValue = String(value).replace('%', '');
             const numValue = parseFloat(cleanValue);
             
@@ -1187,13 +1344,14 @@
             }
 
             const formatted = numValue.toFixed(2) + '%';
+            const sign = numValue > 0 ? '+' : '';
             
             if (numValue > 0) {
-                return `<span class="perf-positive">+${formatted}</span>`;
+                return `<span class="perf-chip positive">${sign}${formatted}</span>`;
             } else if (numValue < 0) {
-                return `<span class="perf-negative">${formatted}</span>`;
+                return `<span class="perf-chip negative">${formatted}</span>`;
             } else {
-                return `<span class="perf-neutral">${formatted}</span>`;
+                return `<span class="perf-chip">${formatted}</span>`;
             }
         }
 

@@ -178,6 +178,7 @@
             border-radius: 16px;
             margin-bottom: 20px;
             display: flex;
+            justify-content: space-between;
             flex-wrap: wrap;
             gap: 12px;
             align-items: center;
@@ -185,9 +186,24 @@
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 24px rgba(0, 0, 0, 0.18);
         }
 
+        .controls-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .controls-right {
+            display: flex;
+            justify-content: flex-end;
+            flex: 1;
+            min-width: 220px;
+        }
+
         .search-box {
             flex: 1;
             min-width: 280px;
+            max-width: 420px;
         }
 
         .search-box input {
@@ -230,11 +246,17 @@
             cursor: pointer;
             min-width: 120px;
             width: 100%;
-            padding: 0;
-            background: transparent;
-            border: none;
+            padding: 10px 12px;
+            background: #1e1e1e;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
             color: var(--text-primary);
             font-size: 0.95rem;
+        }
+
+        select option {
+            background: #1e1e1e;
+            color: var(--text-primary);
         }
 
         input[type="text"], select {
@@ -680,9 +702,7 @@
         <section class="hero-card">
             <div class="hero-copy">
                 <div class="eyebrow">Live market overview</div>
-                <h2>Run a fresh analysis and spotlight the strongest movers in seconds.</h2>
-                <p>Fetch the latest Capital.com data, compare performance windows, and surface RSI clusters without leaving your dashboard.</p>
-                <div class="hero-badges">
+                                <div class="hero-badges">
                     <span class="hero-badge">⚡ Fast refresh</span>
                     <span class="hero-badge">📈 Multi-timeframe insights</span>
                     <span class="hero-badge">🧠 RSI-ready view</span>
@@ -786,19 +806,23 @@
         </div>
 
         <div class="controls">
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Search markets by name or EPIC...">
+            <div class="controls-left">
+                <div class="filter-pill">
+                    <span>Category</span>
+                    <select id="categoryFilter">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <button class="btn refresh-btn" onclick="loadData()">
+                    <span class="refresh-icon">🔄</span>
+                    Refresh
+                </button>
             </div>
-            <div class="filter-pill">
-                <span>Category</span>
-                <select id="categoryFilter">
-                    <option value="">All</option>
-                </select>
+            <div class="controls-right">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search markets by name or EPIC...">
+                </div>
             </div>
-            <button class="btn refresh-btn" onclick="loadData()">
-                <span class="refresh-icon">🔄</span>
-                Refresh
-            </button>
         </div>
 
         <div class="table-container">

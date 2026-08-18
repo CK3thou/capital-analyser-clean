@@ -13,8 +13,11 @@ class ResolveMarketLimitTests(unittest.TestCase):
     def test_uses_category_default_when_explicitly_requested(self):
         self.assertEqual(resolve_market_limit("forex", configured_limit=None, use_category_defaults=True), 50)
 
-    def test_uses_default_cap_for_unknown_categories(self):
-        self.assertEqual(resolve_market_limit("mystery", configured_limit=None), 100)
+    def test_fetches_all_markets_when_defaults_disabled(self):
+        self.assertIsNone(resolve_market_limit("forex", configured_limit=None, use_category_defaults=False))
+
+    def test_uses_default_cap_for_unknown_categories_with_defaults(self):
+        self.assertEqual(resolve_market_limit("mystery", configured_limit=None, use_category_defaults=True), 50)
 
 
 if __name__ == "__main__":

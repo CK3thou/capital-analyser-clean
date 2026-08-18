@@ -283,9 +283,9 @@ def store_to_database(market_data: list, db_path: str = 'market_data.db', catego
 def resolve_market_limit(category: str, configured_limit: int | None = None, use_category_defaults: bool = True) -> int | None:
     """Resolve the effective cap for a category.
 
-    The configured limit from config.py takes precedence when set. When it is
-    explicitly None, we fall back to the built-in category defaults so the
-    fetch only pulls the most traded items for that category.
+    When MAX_MARKETS_PER_CATEGORY is set in config.py, that value is used for
+    every category. When it is None, the built-in per-category default (50) is
+    used unless use_category_defaults is False (fetch all available markets).
     """
     if configured_limit is not None:
         return configured_limit
@@ -302,7 +302,7 @@ def resolve_market_limit(category: str, configured_limit: int | None = None, use
         'cryptocurrencies': 50,
     }
 
-    return category_limits.get(category.lower(), 100)
+    return category_limits.get(category.lower(), 50)
 
 
 def fetch_and_analyze_markets(api: CapitalAPI, categories: list) -> list:

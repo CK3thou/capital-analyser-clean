@@ -30,8 +30,8 @@ CATEGORIES = [
 # Rate limiting (seconds to wait between API calls)
 REQUEST_DELAY = 0.15
 
-# Maximum markets to fetch per category (set to None for all)
-MAX_MARKETS_PER_CATEGORY = None
+# Maximum markets to fetch per category (set to None for all available markets)
+MAX_MARKETS_PER_CATEGORY = 50
 
 # Maximum threads for parallel processing (speed up data fetch)
 MAX_THREADS = 5
